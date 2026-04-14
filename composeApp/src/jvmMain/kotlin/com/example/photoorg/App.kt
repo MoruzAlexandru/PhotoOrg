@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -123,7 +122,6 @@ private fun pickSwingFolder(initialPath: String): String? {
 @Preview
 fun App() {
     MaterialTheme(colorScheme = PhotoOrgColorScheme) {
-        var albumNameOrPathCheck by remember { mutableStateOf(true) }
         var albumName by remember { mutableStateOf("") }
         var albumPathFinal by remember { mutableStateOf("D:\\Poze Canon\\") }
 
@@ -140,46 +138,20 @@ fun App() {
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Checkbox(
-                    checked = albumNameOrPathCheck,
-                    onCheckedChange = {albumNameOrPathCheck = it}
-                )
-                OutlinedTextField(
-                    value = albumName,
-                    onValueChange = { albumName = it },
-                    label = { Text("New Album's Name") },
-                    modifier = Modifier.fillMaxWidth(0.7f),
-                    enabled = albumNameOrPathCheck
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // 1. Checkbox Field
-                Checkbox(
-                    checked = !albumNameOrPathCheck,
-                    onCheckedChange = {
-                        if (albumNameOrPathCheck) {albumNameOrPathCheck = false} else {albumNameOrPathCheck = true};
-                    }
-                )
-                // 2. The Path Field
+                // 1. The Path Field
                 OutlinedTextField(
                     value = albumPathFinal,
                     onValueChange = { albumPathFinal = it },
-                    label = { Text("Selected Path") },
+                    label = { Text("Destination Album Path") },
                     modifier = Modifier.fillMaxWidth(0.59f),
-                    readOnly = true, // Prevents manual typing if preferred
-                    enabled = !albumNameOrPathCheck,
+                    readOnly = false, // Prevents manual typing if preferred
                 )
 
-                // 3. Added a space of 8 dp between the path text field and Open button
+                // 2. Added a space of 8 dp between the path text field and Open button
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // 4. The Explorer Button
+                // 3. The Explorer Button
                 Button(
-                    enabled = !albumNameOrPathCheck,
                     onClick = {
                         pickFolder(albumPathFinal)?.let { selectedPath ->
                             albumPathFinal = selectedPath
