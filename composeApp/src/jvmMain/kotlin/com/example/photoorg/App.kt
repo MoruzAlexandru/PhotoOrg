@@ -1,6 +1,7 @@
 package com.example.photoorg
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -12,13 +13,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +43,15 @@ import javax.swing.UIManager
 
 import photoorg.composeapp.generated.resources.Res
 import photoorg.composeapp.generated.resources.compose_multiplatform
+import java.nio.file.Files
+import kotlinx.coroutines.delay
+
+
+var defaultPathDestination = "D:\\Poze Canon\\"
+val jpegDirectoryName = "JPEG"
+val rawDirectoryName = "RAW"
+val jpegFormats = listOf("jpg", "jpeg")
+val rawFormats = listOf("cr3")
 
 private val PhotoOrgColorScheme = lightColorScheme(
     primary = Color(0xFF2F5D62),
@@ -113,17 +128,131 @@ private fun pickSwingFolder(initialPath: String): String? {
     }
 }
 
-//$env:JAVA_HOME = "C:\Users\moruz\AppData\Local\Programs\IntelliJ IDEA Community Edition\jbr"
-//$env:Path = "$env:JAVA_HOME\bin;$env:Path"
-//java -version
-//.\gradlew.bat :composeApp:run
+private fun getFilesList(sourcePath: String): List<File> {
+    val sourceDir = File(sourcePath)
+    if (!sourceDir.exists() || !sourceDir.isDirectory) {
+        println("Source path '$sourcePath' is not a valid directory.")
+        return emptyList()
+    }
+
+    return sourceDir.listFiles()?.filter { it.isFile } ?: emptyList()
+}
+
+private fun copyFiles(files: List<File>, destinationPath: File) {
+    files.forEach { file ->
+        val fileExtension = file.extension.lowercase()
+
+        var extensionDir: File? = null
+        if (fileExtension in jpegFormats) {
+            extensionDir = File(destinationPath, jpegDirectoryName)
+        }
+        if (fileExtension in rawFormats) {
+            extensionDir = File(destinationPath, rawDirectoryName)
+        }
+        if (extensionDir != null) {
+            val destFile = File(extensionDir, file.name)
+            Files.copy(file.toPath(), destFile.toPath())
+            println("Copied '${file.absolutePath}' to '${destFile.absolutePath}'")
+        }
+    }
+}
+
+private fun moveFiles(files: List<File>, destinationPath: File) {
+    files.forEach { file ->
+        val fileExtension = file.extension.lowercase()
+
+        var extensionDir: File? = null
+        if (fileExtension in jpegFormats) {
+            extensionDir = File(destinationPath, jpegDirectoryName)
+        }
+        if (fileExtension in rawFormats) {
+            extensionDir = File(destinationPath, rawDirectoryName)
+        }
+        if (extensionDir != null) {
+            val destFile = File(extensionDir, file.name)
+            Files.move(file.toPath(), destFile.toPath())
+            println("Moved '${file.absolutePath}' to '${destFile.absolutePath}'")
+        }
+    }
+}
+
+private fun processFiles(sourcePath: String, destionationPath: String, deleteFiles: Boolean = false): Boolean {
+    if (destionationPath == defaultPathDestination) {
+        println("Destination path is still the default path '$defaultPathDestination'")
+        return true
+    }
+
+    println("Processing files from '$sourcePath' to '$destionationPath'. Files are ${if (deleteFiles) "being moved" else "being copied"}.")
+
+    // check source directory exists
+    val sourceDir = File(sourcePath).isDirectory
+    if (!sourceDir) {
+        println("Source path '$sourcePath' is not a valid directory")
+        return false
+    }
+
+    // check destination directory exists and create it if not
+    var destinationDir = File(destionationPath)
+    if (!destinationDir.exists() || !destinationDir.isDirectory){
+        println("Destination path '$destionationPath' is not a valid directory")
+        println("Album '$destionationPath' will be created inside default directory '$defaultPathDestination'")
+        destinationDir = File(defaultPathDestination)
+    }
+    // create RAW and JPEG folders inside destination directory
+    val createdRaw = File(destinationDir, "RAW").mkdirs()
+    println("Created: $createdRaw")
+    val createdJpeg = File(destinationDir, "JPEG").mkdirs()
+    println("Created: $createdJpeg")
+
+    // extract file path list from source directory
+    val files_list = getFilesList(sourcePath)
+    if (files_list.isEmpty()) {
+        println("No files found in source directory '$sourcePath'")
+        return false
+    }
+    println(files_list)
+    // copy files to destination
+    if (!deleteFiles){
+        println("Files are copied to '$destinationDir'")
+        copyFiles(files_list, destinationDir)
+    }
+    // move files from source
+    if (deleteFiles){
+        println("Files are moved to '$destinationDir'")
+        moveFiles(files_list, destinationDir)
+    }
+
+    return false
+}
 
 @Composable
 @Preview
 fun App() {
+    var albumName by remember { mutableStateOf("") }
+    var albumPathSource by remember {mutableStateOf("D:\\Poze Canon\\106CANON")}
+
+    var albumPathDestination by remember { mutableStateOf(defaultPathDestination) }
+    var destinationBlinkTrigger by remember { mutableStateOf(0) }
+    var highlightDestinationPath by remember { mutableStateOf(false) }
+
+    LaunchedEffect(destinationBlinkTrigger) {
+        if (destinationBlinkTrigger == 0) {
+            return@LaunchedEffect
+        }
+
+        repeat(5) {
+            highlightDestinationPath = true
+            delay(180)
+            highlightDestinationPath = false
+            delay(180)
+        }
+    }
+
     MaterialTheme(colorScheme = PhotoOrgColorScheme) {
-        var albumName by remember { mutableStateOf("") }
-        var albumPathFinal by remember { mutableStateOf("D:\\Poze Canon\\") }
+        val destinationPromptColor by animateColorAsState(
+            targetValue = if (highlightDestinationPath) Color(0xFFD97706) else MaterialTheme.colorScheme.primary,
+            label = "destinationPromptColor"
+        )
 
         var showContent by remember { mutableStateOf(false) }
         Column(
@@ -140,11 +269,19 @@ fun App() {
             ) {
                 // 1. The Path Field
                 OutlinedTextField(
-                    value = albumPathFinal,
-                    onValueChange = { albumPathFinal = it },
+                    value = albumPathDestination,
+                    onValueChange = { albumPathDestination = it },
                     label = { Text("Destination Album Path") },
                     modifier = Modifier.fillMaxWidth(0.59f),
                     readOnly = false, // Prevents manual typing if preferred
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = destinationPromptColor,
+                        unfocusedBorderColor = destinationPromptColor,
+                        focusedLabelColor = destinationPromptColor,
+                        unfocusedLabelColor = destinationPromptColor,
+                        focusedSupportingTextColor = destinationPromptColor,
+                        unfocusedSupportingTextColor = destinationPromptColor,
+                    )
                 )
 
                 // 2. Added a space of 8 dp between the path text field and Open button
@@ -153,8 +290,8 @@ fun App() {
                 // 3. The Explorer Button
                 Button(
                     onClick = {
-                        pickFolder(albumPathFinal)?.let { selectedPath ->
-                            albumPathFinal = selectedPath
+                        pickFolder(albumPathDestination)?.let { selectedPath ->
+                            albumPathDestination = selectedPath
                         }
                     }) {
                     Icon(Icons.Default.FolderOpen, contentDescription = "Open Explorer")
@@ -188,7 +325,45 @@ fun App() {
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Album Path: $albumPathFinal")
+                Text("Album Path: $albumPathDestination")
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 1. Copy photos Button
+                Button(
+                    onClick = {
+                        val shouldBlink = processFiles(albumPathSource, albumPathDestination)
+                        if (shouldBlink) {
+                            destinationBlinkTrigger++
+                        }
+                    },
+                    ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy Photos")
+                    Text(" Copy photos")
+                }
+
+                // 2. Added a space of 20 dp between the 2 buttons
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // 3. Move and delete photos Button
+                Button(
+                    onClick = {
+                        val shouldBlink = processFiles(albumPathSource, albumPathDestination, deleteFiles=true)
+                        if (shouldBlink) {
+                            destinationBlinkTrigger++
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFB0B0B0),
+                        contentColor = Color(0xFF4F4F4F),
+                    )
+                ) {
+                    Icon(Icons.Default.DriveFileMove, contentDescription = "Move Photos")
+                    Text(" Move photos")
+                }
             }
             AnimatedVisibility(showContent) {
                 val greeting = remember { Greeting().greet() }
