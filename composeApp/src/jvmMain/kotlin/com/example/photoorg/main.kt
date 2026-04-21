@@ -1,6 +1,9 @@
 package com.example.photoorg
 
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import org.jetbrains.compose.resources.painterResource
 import photoorg.composeapp.generated.resources.Res
@@ -13,6 +16,7 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "Photo Org",
         icon = painterResource(Res.drawable.photo_org_main_icon_color_photo),
+        state = WindowState(position = WindowPosition(Alignment.Center)),
     ) {
         App()
     }
