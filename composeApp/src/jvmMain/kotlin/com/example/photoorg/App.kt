@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -37,14 +37,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import org.jetbrains.compose.resources.painterResource
 
 import java.io.File
+import java.nio.file.Files
 import java.nio.charset.StandardCharsets
 import javax.swing.JFileChooser
 import javax.swing.UIManager
 
 import photoorg.composeapp.generated.resources.Res
 import photoorg.composeapp.generated.resources.compose_multiplatform
-import java.nio.file.Files
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 
 var defaultPathDestination = "D:\\Poze Canon\\"
@@ -247,9 +248,9 @@ fun App() {
 
         repeat(5) {
             highlightDestinationPath = true
-            delay(180)
+            delay(180.milliseconds)
             highlightDestinationPath = false
-            delay(180)
+            delay(180.milliseconds)
         }
     }
 
@@ -366,7 +367,7 @@ fun App() {
                         contentColor = Color(0xFF4F4F4F),
                     )
                 ) {
-                    Icon(Icons.Default.DriveFileMove, contentDescription = "Move Photos")
+                    Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move Photos")
                     Text(" Move photos")
                 }
             }
