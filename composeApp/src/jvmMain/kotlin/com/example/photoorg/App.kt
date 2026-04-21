@@ -176,13 +176,18 @@ private fun moveFiles(files: List<File>, destinationPath: File) {
     }
 }
 
-private fun processFiles(sourcePath: String, destionationPath: String, deleteFiles: Boolean = false): Boolean {
-    if (destionationPath == defaultPathDestination) {
+private fun processFiles(sourcePath: String, destinationPathIn: String, deleteFiles: Boolean = false): Boolean {
+    if (destinationPathIn == defaultPathDestination) {
         println("Destination path is still the default path '$defaultPathDestination'")
         return true
     }
 
-    println("Processing files from '$sourcePath' to '$destionationPath'. Files are ${if (deleteFiles) "being moved" else "being copied"}.")
+    var destinationPath = destinationPathIn
+    if ('/' !in destinationPath && '\\' !in destinationPath) {
+        destinationPath = "$defaultPathDestination\"$destinationPath"
+    }
+
+    println("Processing files from '$sourcePath' to '$destinationPath'. Files are ${if (deleteFiles) "being moved" else "being copied"}.")
 
     // check source directory exists
     val sourceDir = File(sourcePath).isDirectory
@@ -192,10 +197,10 @@ private fun processFiles(sourcePath: String, destionationPath: String, deleteFil
     }
 
     // check destination directory exists and create it if not
-    var destinationDir = File(destionationPath)
+    var destinationDir = File(destinationPath)
     if (!destinationDir.exists() || !destinationDir.isDirectory){
-        println("Destination path '$destionationPath' is not a valid directory")
-        println("Album '$destionationPath' will be created inside default directory '$defaultPathDestination'")
+        println("Destination path '$destinationPath' is not a valid directory")
+        println("Album '$destinationPath' will be created inside default directory '$defaultPathDestination'")
         destinationDir = File(defaultPathDestination)
     }
     // create RAW and JPEG folders inside destination directory
