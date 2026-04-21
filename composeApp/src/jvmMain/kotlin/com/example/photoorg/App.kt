@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,8 +54,8 @@ val jpegDirectoryName = "JPEG"
 val rawDirectoryName = "RAW"
 val jpegFormats = listOf("jpg", "jpeg")
 val rawFormats = listOf("cr3")
-
-private val PhotoOrgColorScheme = lightColorScheme(
+val blinkColor = Color(0xFFD97706)
+private val PhotoOrgColorSchemeLight = lightColorScheme(
     primary = Color(0xFF2F5D62),
     onPrimary = Color(0xFFFFFFFF),
     secondary = Color(0xFF5E6B73),
@@ -64,6 +65,22 @@ private val PhotoOrgColorScheme = lightColorScheme(
     surface = Color(0xFFFFFFFF),
     onSurface = Color(0xFF1B1F23),
 )
+private val PhotoOrgColorSchemeDark = darkColorScheme(
+    primary = Color(0xFF2F5D62),
+    onPrimary = Color(0xFFFFFFFF),
+    secondary = Color(0xFF5E6B73),
+    onSecondary = Color(0xFFFFFFFF),
+    background = Color(0xFFF3F5F7),
+    onBackground = Color(0xFF1B1F23),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF1B1F23),
+)
+
+
+private val BLINK_SOURCE_PATH = "blink_source_path"
+private val BLINK_DEST_PATH = "blink_dest_path"
+private val NO_FILES_FOUND = "no_files_found"
+private val NO_ERROR = "no_error"
 
 private fun pickFolder(initialPath: String): String? {
     if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
@@ -177,25 +194,27 @@ private fun moveFiles(files: List<File>, destinationPath: File) {
     }
 }
 
-private fun processFiles(sourcePath: String, destinationPathIn: String, deleteFiles: Boolean = false): Boolean {
+private fun processFiles(sourcePathIn: String, destinationPathIn: String, deleteFiles: Boolean = false): String {
+    var destinationPath = destinationPathIn
+    var sourcePath = sourcePathIn
+
     if (destinationPathIn == defaultPathDestination) {
-        println("Destination path is still the default path '$defaultPathDestination'")
-        return true
+        println("Destination path is still the default path -> '$defaultPathDestination'")
+        return BLINK_DEST_PATH
     }
 
-    var destinationPath = destinationPathIn
     if ('/' !in destinationPath && '\\' !in destinationPath) {
         destinationPath = "$defaultPathDestination\"$destinationPath"
     }
 
-    println("Processing files from '$sourcePath' to '$destinationPath'. Files are ${if (deleteFiles) "being moved" else "being copied"}.")
-
-    // check source directory exists
-    val sourceDir = File(sourcePath).isDirectory
-    if (!sourceDir) {
-        println("Source path '$sourcePath' is not a valid directory")
-        return false
+    if (sourcePath.isEmpty()) {
+        println("Source path is destination path -> '$defaultPathDestination'")
+        sourcePath = destinationPath
     }
+
+    println("Processing files from -> '$sourcePath'.")
+    println("Processing files to   -> '$destinationPath'.")
+    println("Files are ${if (deleteFiles) "being moved" else "being copied"}.")
 
     // check destination directory exists and create it if not
     var destinationDir = File(destinationPath)
@@ -204,6 +223,14 @@ private fun processFiles(sourcePath: String, destinationPathIn: String, deleteFi
         println("Album '$destinationPath' will be created inside default directory '$defaultPathDestination'")
         destinationDir = File(defaultPathDestination)
     }
+
+    // check source directory exists
+    val sourceFile = File(sourcePath)
+    if (!sourceFile.exists() || !sourceFile.isDirectory) {
+        println("Source path '$sourcePath' is not a valid directory")
+        return BLINK_SOURCE_PATH
+    }
+
     // create RAW and JPEG folders inside destination directory
     val createdRaw = File(destinationDir, "RAW").mkdirs()
     println("Created: $createdRaw")
@@ -214,7 +241,7 @@ private fun processFiles(sourcePath: String, destinationPathIn: String, deleteFi
     val files_list = getFilesList(sourcePath)
     if (files_list.isEmpty()) {
         println("No files found in source directory '$sourcePath'")
-        return false
+        return NO_FILES_FOUND
     }
     println(files_list)
     // copy files to destination
@@ -228,14 +255,16 @@ private fun processFiles(sourcePath: String, destinationPathIn: String, deleteFi
         moveFiles(files_list, destinationDir)
     }
 
-    return false
+    return NO_ERROR
 }
 
 @Composable
 @Preview
 fun App() {
     var albumName by remember { mutableStateOf("") }
-    var albumPathSource by remember {mutableStateOf("D:\\Poze Canon\\106CANON")}
+    var albumPathSource by remember { mutableStateOf("") }
+    var sourceBlinkTrigger by remember { mutableStateOf(0) }
+    var highlightSourcePath by remember { mutableStateOf(false) }
 
     var albumPathDestination by remember { mutableStateOf(defaultPathDestination) }
     var destinationBlinkTrigger by remember { mutableStateOf(0) }
@@ -246,18 +275,34 @@ fun App() {
             return@LaunchedEffect
         }
 
-        repeat(5) {
+        repeat(7) {
             highlightDestinationPath = true
-            delay(180.milliseconds)
+            delay(200.milliseconds)
             highlightDestinationPath = false
-            delay(180.milliseconds)
+            delay(200.milliseconds)
+        }
+    }
+    LaunchedEffect(sourceBlinkTrigger) {
+        if (sourceBlinkTrigger == 0) {
+            return@LaunchedEffect
+        }
+
+        repeat(7) {
+            highlightSourcePath = true
+            delay(200.milliseconds)
+            highlightSourcePath = false
+            delay(200.milliseconds)
         }
     }
 
-    MaterialTheme(colorScheme = PhotoOrgColorScheme) {
-        val destinationPromptColor by animateColorAsState(
-            targetValue = if (highlightDestinationPath) Color(0xFFD97706) else MaterialTheme.colorScheme.primary,
-            label = "destinationPromptColor"
+    MaterialTheme(colorScheme = PhotoOrgColorSchemeLight) {
+        val destinationRowColor by animateColorAsState(
+            targetValue = if (highlightDestinationPath) blinkColor else MaterialTheme.colorScheme.primary,
+            label = "destinationRowColor"
+        )
+        val sourceRowColor by animateColorAsState(
+            targetValue = if (highlightSourcePath) blinkColor else MaterialTheme.colorScheme.secondary,
+            label = "sourceRowColor"
         )
 
         var showContent by remember { mutableStateOf(false) }
@@ -268,7 +313,7 @@ fun App() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top,
         ) {
-            Row(
+            Row( // Destination path input
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
@@ -281,12 +326,14 @@ fun App() {
                     modifier = Modifier.fillMaxWidth(0.59f),
                     readOnly = false, // Prevents manual typing if preferred
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = destinationPromptColor,
-                        unfocusedBorderColor = destinationPromptColor,
-                        focusedLabelColor = destinationPromptColor,
-                        unfocusedLabelColor = destinationPromptColor,
-                        focusedSupportingTextColor = destinationPromptColor,
-                        unfocusedSupportingTextColor = destinationPromptColor,
+                        focusedBorderColor = destinationRowColor,
+                        unfocusedBorderColor = destinationRowColor,
+                        focusedLabelColor = destinationRowColor,
+                        unfocusedLabelColor = destinationRowColor,
+                        focusedTextColor = destinationRowColor,
+                        unfocusedTextColor = destinationRowColor,
+                        focusedSupportingTextColor = destinationRowColor,
+                        unfocusedSupportingTextColor = destinationRowColor,
                     )
                 )
 
@@ -299,7 +346,55 @@ fun App() {
                         pickFolder(albumPathDestination)?.let { selectedPath ->
                             albumPathDestination = selectedPath
                         }
-                    }) {
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = destinationRowColor,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    )
+                ) {
+                    Icon(Icons.Default.FolderOpen, contentDescription = "Open Explorer")
+                }
+            }
+            Row( // Source path input
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 1. The Path Field
+                OutlinedTextField(
+                    value = albumPathSource,
+                    onValueChange = { albumPathSource = it },
+                    label = { Text("Source Album Path") },
+                    modifier = Modifier.fillMaxWidth(0.59f),
+                    readOnly = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = sourceRowColor,
+                        unfocusedBorderColor = sourceRowColor,
+                        focusedLabelColor = sourceRowColor,
+                        unfocusedLabelColor = sourceRowColor,
+                        focusedTextColor = sourceRowColor,
+                        unfocusedTextColor = sourceRowColor,
+                        disabledTextColor = sourceRowColor,
+                        focusedSupportingTextColor = sourceRowColor,
+                        unfocusedSupportingTextColor = sourceRowColor,
+                    )
+                )
+
+                // 2. Added a space of 8 dp between the path text field and Open button
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // 3. The Explorer Button
+                Button(
+                    onClick = {
+                        pickFolder(albumPathSource)?.let { selectedPath ->
+                            albumPathSource = selectedPath
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = sourceRowColor,
+                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                    )
+                ) {
                     Icon(Icons.Default.FolderOpen, contentDescription = "Open Explorer")
                 }
             }
@@ -342,8 +437,11 @@ fun App() {
                 Button(
                     onClick = {
                         val shouldBlink = processFiles(albumPathSource, albumPathDestination)
-                        if (shouldBlink) {
+                        if (shouldBlink == BLINK_DEST_PATH) {
                             destinationBlinkTrigger++
+                        }
+                        if (shouldBlink == BLINK_SOURCE_PATH) {
+                            sourceBlinkTrigger++
                         }
                     },
                     ) {
@@ -358,8 +456,11 @@ fun App() {
                 Button(
                     onClick = {
                         val shouldBlink = processFiles(albumPathSource, albumPathDestination, deleteFiles=true)
-                        if (shouldBlink) {
+                        if (shouldBlink == BLINK_DEST_PATH) {
                             destinationBlinkTrigger++
+                        }
+                        if (shouldBlink == BLINK_SOURCE_PATH) {
+                            sourceBlinkTrigger++
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
