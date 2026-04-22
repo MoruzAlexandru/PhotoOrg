@@ -2,13 +2,16 @@ package com.example.photoorg
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -30,21 +33,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.unit.dp
 
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.nio.charset.StandardCharsets
 import javax.swing.JFileChooser
 import javax.swing.UIManager
 
-import photoorg.composeapp.generated.resources.Res
-import photoorg.composeapp.generated.resources.compose_multiplatform
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -55,6 +58,7 @@ val rawDirectoryName = "RAW"
 val jpegFormats = listOf("jpg", "jpeg")
 val rawFormats = listOf("cr3")
 val blinkColor = Color(0xFFD97706)
+
 private val PhotoOrgColorSchemeLight = lightColorScheme(
     primary = Color(0xFF2F5D62),
     onPrimary = Color(0xFFFFFFFF),
@@ -66,21 +70,45 @@ private val PhotoOrgColorSchemeLight = lightColorScheme(
     onSurface = Color(0xFF1B1F23),
 )
 private val PhotoOrgColorSchemeDark = darkColorScheme(
-    primary = Color(0xFF2F5D62),
-    onPrimary = Color(0xFFFFFFFF),
-    secondary = Color(0xFF5E6B73),
-    onSecondary = Color(0xFFFFFFFF),
-    background = Color(0xFFF3F5F7),
-    onBackground = Color(0xFF1B1F23),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1B1F23),
+    primary = Color(0xFFB6BDC6),
+    onPrimary = Color(0xFF161A1E),
+    secondary = Color(0xFF8F98A3),
+    onSecondary = Color(0xFF13171B),
+    background = Color(0xFF1A1C1F),
+    onBackground = Color(0xFFE7E9EC),
+    surface = Color(0xFF26292D),
+    onSurface = Color(0xFFE7E9EC),
 )
 
+@Composable
+fun PhotoOrgTheme(content: @Composable () -> Unit) {
+    val useDarkTheme = isSystemInDarkTheme()
+    MaterialTheme(
+        colorScheme = if (useDarkTheme) PhotoOrgColorSchemeDark else PhotoOrgColorSchemeLight,
+        content = content,
+    )
+}
 
 private val BLINK_SOURCE_PATH = "blink_source_path"
 private val BLINK_DEST_PATH = "blink_dest_path"
 private val NO_FILES_FOUND = "no_files_found"
 private val NO_ERROR = "no_error"
+
+private object AppConsole {
+    private const val maxLines = 200
+    private val _lines = mutableListOf<String>().toMutableStateList()
+    val lines: SnapshotStateList<String> = _lines
+
+    fun log(message: String) {
+        println(message)
+        _lines += message
+        if (_lines.size > maxLines) {
+            _lines.removeRange(0, _lines.size - maxLines)
+        }
+    }
+}
+
+private fun appLog(message: String) = AppConsole.log(message)
 
 private fun pickFolder(initialPath: String): String? {
     if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
@@ -149,7 +177,7 @@ private fun pickSwingFolder(initialPath: String): String? {
 private fun getFilesList(sourcePath: String): List<File> {
     val sourceDir = File(sourcePath)
     if (!sourceDir.exists() || !sourceDir.isDirectory) {
-        println("Source path '$sourcePath' is not a valid directory.")
+        appLog("Source path '$sourcePath' is not a valid directory.")
         return emptyList()
     }
 
@@ -169,8 +197,9 @@ private fun copyFiles(files: List<File>, destinationPath: File) {
         }
         if (extensionDir != null) {
             val destFile = File(extensionDir, file.name)
-            Files.copy(file.toPath(), destFile.toPath())
-            println("Copied '${file.absolutePath}' to '${destFile.absolutePath}'")
+//            Files.copy(file.toPath(), destFile.toPath())
+            Files.copy(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            appLog("Copied '${file.absolutePath}' to '${destFile.absolutePath}'")
         }
     }
 }
@@ -188,8 +217,9 @@ private fun moveFiles(files: List<File>, destinationPath: File) {
         }
         if (extensionDir != null) {
             val destFile = File(extensionDir, file.name)
-            Files.move(file.toPath(), destFile.toPath())
-            println("Moved '${file.absolutePath}' to '${destFile.absolutePath}'")
+//            Files.move(file.toPath(), destFile.toPath())
+            Files.move(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            appLog("Moved '${file.absolutePath}' to '${destFile.absolutePath}'")
         }
     }
 }
@@ -199,7 +229,7 @@ private fun processFiles(sourcePathIn: String, destinationPathIn: String, delete
     var sourcePath = sourcePathIn
 
     if (destinationPathIn == defaultPathDestination) {
-        println("Destination path is still the default path -> '$defaultPathDestination'")
+        appLog("Destination path is still the default path -> '$defaultPathDestination'")
         return BLINK_DEST_PATH
     }
 
@@ -208,50 +238,50 @@ private fun processFiles(sourcePathIn: String, destinationPathIn: String, delete
     }
 
     if (sourcePath.isEmpty()) {
-        println("Source path is destination path -> '$defaultPathDestination'")
+        appLog("Source path is destination path -> '$defaultPathDestination'")
         sourcePath = destinationPath
     }
 
-    println("Processing files from -> '$sourcePath'.")
-    println("Processing files to   -> '$destinationPath'.")
-    println("Files are ${if (deleteFiles) "being moved" else "being copied"}.")
+    appLog("Processing files from -> '$sourcePath'.")
+    appLog("Processing files to   -> '$destinationPath'.")
+    appLog("Files are ${if (deleteFiles) "being moved" else "being copied"}.")
 
     // check destination directory exists and create it if not
     var destinationDir = File(destinationPath)
     if (!destinationDir.exists() || !destinationDir.isDirectory){
-        println("Destination path '$destinationPath' is not a valid directory")
-        println("Album '$destinationPath' will be created inside default directory '$defaultPathDestination'")
+        appLog("Destination path '$destinationPath' is not a valid directory")
+        appLog("Album '$destinationPath' will be created inside default directory '$defaultPathDestination'")
         destinationDir = File(defaultPathDestination)
     }
 
     // check source directory exists
     val sourceFile = File(sourcePath)
     if (!sourceFile.exists() || !sourceFile.isDirectory) {
-        println("Source path '$sourcePath' is not a valid directory")
+        appLog("Source path '$sourcePath' is not a valid directory")
         return BLINK_SOURCE_PATH
     }
 
     // create RAW and JPEG folders inside destination directory
     val createdRaw = File(destinationDir, "RAW").mkdirs()
-    println("Created: $createdRaw")
+    appLog("Created RAW dir: $createdRaw")
     val createdJpeg = File(destinationDir, "JPEG").mkdirs()
-    println("Created: $createdJpeg")
+    appLog("Created JPEG dir: $createdJpeg")
 
     // extract file path list from source directory
     val files_list = getFilesList(sourcePath)
     if (files_list.isEmpty()) {
-        println("No files found in source directory '$sourcePath'")
+        appLog("No files found in source directory '$sourcePath'")
         return NO_FILES_FOUND
     }
-    println(files_list)
+    appLog("Found ${files_list.size} file(s).")
     // copy files to destination
     if (!deleteFiles){
-        println("Files are copied to '$destinationDir'")
+        appLog("Files are copied to '$destinationDir'")
         copyFiles(files_list, destinationDir)
     }
     // move files from source
     if (deleteFiles){
-        println("Files are moved to '$destinationDir'")
+        appLog("Files are moved to '$destinationDir'")
         moveFiles(files_list, destinationDir)
     }
 
@@ -260,7 +290,10 @@ private fun processFiles(sourcePathIn: String, destinationPathIn: String, delete
 
 @Composable
 @Preview
-fun App() {
+fun App(
+    showTerminalContent: Boolean = false,
+    onToggleTerminalOutput: () -> Unit = {},
+) {
     var albumName by remember { mutableStateOf("") }
     var albumPathSource by remember { mutableStateOf("") }
     var sourceBlinkTrigger by remember { mutableStateOf(0) }
@@ -295,24 +328,22 @@ fun App() {
         }
     }
 
-    MaterialTheme(colorScheme = PhotoOrgColorSchemeLight) {
-        val destinationRowColor by animateColorAsState(
-            targetValue = if (highlightDestinationPath) blinkColor else MaterialTheme.colorScheme.primary,
-            label = "destinationRowColor"
-        )
-        val sourceRowColor by animateColorAsState(
-            targetValue = if (highlightSourcePath) blinkColor else MaterialTheme.colorScheme.secondary,
-            label = "sourceRowColor"
-        )
+    val destinationRowColor by animateColorAsState(
+        targetValue = if (highlightDestinationPath) blinkColor else MaterialTheme.colorScheme.primary,
+        label = "destinationRowColor"
+    )
+    val sourceRowColor by animateColorAsState(
+        targetValue = if (highlightSourcePath) blinkColor else MaterialTheme.colorScheme.secondary,
+        label = "sourceRowColor"
+    )
 
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top,
-        ) {
+    Column(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top,
+    ) {
             Row( // Destination path input
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -323,7 +354,7 @@ fun App() {
                     value = albumPathDestination,
                     onValueChange = { albumPathDestination = it },
                     label = { Text("Destination Album Path") },
-                    modifier = Modifier.fillMaxWidth(0.59f),
+                    modifier = Modifier.fillMaxWidth(0.7f),
                     readOnly = false, // Prevents manual typing if preferred
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = destinationRowColor,
@@ -365,7 +396,7 @@ fun App() {
                     value = albumPathSource,
                     onValueChange = { albumPathSource = it },
                     label = { Text("Source Album Path") },
-                    modifier = Modifier.fillMaxWidth(0.59f),
+                    modifier = Modifier.fillMaxWidth(0.7f),
                     readOnly = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = sourceRowColor,
@@ -396,15 +427,6 @@ fun App() {
                     )
                 ) {
                     Icon(Icons.Default.FolderOpen, contentDescription = "Open Explorer")
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Button(onClick = { showContent = !showContent }) {
-                    Text("Click me!")
                 }
             }
             Row(
@@ -472,16 +494,39 @@ fun App() {
                     Text(" Move photos")
                 }
             }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = onToggleTerminalOutput) {
+                    Text(
+                        if (showTerminalContent) {
+                            "Hide terminal output.."
+                        } else {
+                            "Show terminal output.."
+                        }
+                    )
+                }
+            }
+            AnimatedVisibility(showTerminalContent) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(top = 20.dp)
+                        .padding(bottom = 12.dp)
+                        .fillMaxWidth(0.95f)
+                        .fillMaxHeight()
+                        .heightIn(min = 300.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+                    TerminalPanel(
+                        modifier = Modifier.fillMaxSize(),
+                        title = "photoorg.exe",
+                        lines = AppConsole.lines,
+                    )
                 }
             }
         }
-    }
 }
